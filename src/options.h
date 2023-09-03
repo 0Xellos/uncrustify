@@ -1557,6 +1557,11 @@ indent_var_def_cont;
 extern BoundedOption<signed, -1, 1>
 indent_shift;
 
+// Whether to indent braced list members one indent level,
+// rather than aligning members under the open brace.
+extern Option<bool>
+indent_braced_list_param;
+
 // Whether to force indentation of function definitions to start in column 1.
 extern Option<bool>
 indent_func_def_force_col1;
@@ -2842,6 +2847,20 @@ nl_before_func_class_proto;
 // The number of newlines before a class constructor/destructor definition.
 extern BoundedOption<unsigned, 0, 16>
 nl_before_func_class_def;
+
+// Allow any number of newlines between function prototypes.
+extern Option<bool>
+ignore_nl_between_func_proto;
+
+// If a multi-line function body is followed by a preprocessor directive,
+// ignore options nl_after_func_body and nl_after_func_body_class.
+extern Option<bool>
+group_func_body_pp;
+
+// If a class definition is followed by a preprocessor directive,
+// ignore options nl_after_class and nl_after_struct.
+extern Option<bool>
+group_class_pp;
 
 // The number of newlines after a function prototype.
 extern BoundedOption<unsigned, 0, 16>

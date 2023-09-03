@@ -139,6 +139,16 @@ static iarf_e do_space(Chunk *first, Chunk *second, int &min_sp)
       return(options::sp_pp_concat());
    }
 
+   if (  second->Is(CT_POUND)
+      && second->TestFlags(PCF_IN_PREPROC)
+      && first->GetType() == CT_COMMA)
+   {
+      // Add or remove space before preprocessor '#' stringify operator
+      // as in '#define f(x,y) g(x,#y)'.
+      log_rule("sp_after_comma");
+      return(options::sp_after_comma());
+   }
+
    if (first->Is(CT_POUND))
    {
       // Add or remove space after preprocessor '#' stringify operator.

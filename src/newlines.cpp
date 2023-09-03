@@ -1233,7 +1233,8 @@ bool do_it_newlines_func_pre_blank_lines(Chunk *last_nl, E_Token start_type)
 
       log_rule_B("nl_before_func_body_proto");
 
-      if (options::nl_before_func_body_proto() != last_nl->GetNlCount())
+      if (options::nl_before_func_body_proto() != last_nl->GetNlCount()
+         && !options::ignore_nl_between_func_proto())
       {
          LOG_FMT(LNLFUNCT, "%s(%d):   set blank line(s) to %u\n",
                  __func__, __LINE__, options::nl_before_func_body_proto());
@@ -4761,7 +4762,10 @@ void newlines_cleanup_braces(bool first)
          {
             log_rule_B("nl_after_class");
 
-            if (options::nl_after_class() > 0)
+            if (options::nl_after_class() > 0
+               && !(options::group_class_pp()
+                  && pc->IsNewline()
+                  && pc->GetNext()->IsPreproc()))
             {
                /*
                 * If there is already a "class" comment, then don't add a newline if
@@ -6360,7 +6364,10 @@ void do_blank_lines()
          else
          {
             if (  prev->TestFlags(PCF_IN_CLASS)
-               && (options::nl_after_func_body_class() > 0))
+               && (options::nl_after_func_body_class() > 0)
+               && !(options::group_func_body_pp()
+                  && pc->IsNewline()
+                  && pc->GetNext()->IsPreproc()))
             {
                log_rule_B("nl_after_func_body_class");
 
@@ -6374,7 +6381,10 @@ void do_blank_lines()
             {
                if (!(pc->GetPrev()->TestFlags(PCF_IN_TRY_BLOCK))) // Issue #1734
                {
-                  if (options::nl_after_func_body() > 0)
+                  if (options::nl_after_func_body() > 0
+                     && !(options::group_func_body_pp()
+                        && pc->IsNewline()
+                        && pc->GetNext()->IsPreproc()))
                   {
                      log_rule_B("nl_after_func_body");
 
@@ -6386,7 +6396,10 @@ void do_blank_lines()
                   }
                   else
                   {
-                     if (options::nl_min_after_func_body() > 0) // Issue #2787
+                     if (options::nl_min_after_func_body() > 0
+                        && !(options::group_func_body_pp()
+                           && pc->IsNewline()
+                           && pc->GetNext()->IsPreproc())) // Issue #2787
                      {
                         log_rule_B("nl_min_after_func_body");
 
@@ -6397,7 +6410,10 @@ void do_blank_lines()
                         }
                      }
 
-                     if (options::nl_max_after_func_body() > 0)
+                     if (options::nl_max_after_func_body() > 0
+                        && !(options::group_func_body_pp()
+                           && pc->IsNewline()
+                           && pc->GetNext()->IsPreproc()))
                      {
                         log_rule_B("nl_max_after_func_body");
 
@@ -6418,7 +6434,8 @@ void do_blank_lines()
             && prev->GetParentType() == CT_FUNC_PROTO)
          || is_func_proto_group(prev, CT_FUNC_DEF))
       {
-         if (options::nl_after_func_proto() > pc->GetNlCount())
+         if (options::nl_after_func_proto() > pc->GetNlCount()
+            && !options::ignore_nl_between_func_proto())
          {
             log_rule_B("nl_after_func_proto");
             pc->SetNlCount(options::nl_after_func_proto());
@@ -6471,7 +6488,10 @@ void do_blank_lines()
          log_rule_B("nl_after_class");
          log_rule_B("nl_after_struct");
 
-         if (opt() > pc->GetNlCount())
+         if (opt() > pc->GetNlCount()
+            && !(options::group_class_pp()
+               && pc->IsNewline()
+               && pc->GetNext()->IsPreproc()))
          {
             // Issue #1702
             // look back if we have a variable

@@ -2109,6 +2109,10 @@ void indent_text()
             {
                frm.top().SetIndent(frm.prev().GetIndent() + options::indent_switch_body());
             }
+            else if (pc->GetParentType() == CT_BRACED_INIT_LIST && options::indent_braced_list_param())
+            {
+               frm.top().SetIndent(frm.prev().GetIndent() + options::indent_param());
+            }
             else
             {
                frm.top().SetIndent(frm.prev().GetIndent() + indent_size);
@@ -2685,10 +2689,13 @@ void indent_text()
             log_indent_tmp();
          }
          else if (  (  pc->Is(CT_FPAREN_OPEN)
-                    || pc->Is(CT_ANGLE_OPEN))
+                    || pc->Is(CT_ANGLE_OPEN)
+                    || pc->Is(CT_BRACE_OPEN))
                  && (  (  options::indent_func_call_param()
                        && (  pc->GetParentType() == CT_FUNC_CALL
                           || pc->GetParentType() == CT_FUNC_CALL_USER))
+                    || (  options::indent_braced_list_param()
+                       && pc->GetParentType() == CT_BRACED_INIT_LIST)
                     || (  options::indent_func_proto_param()
                        && pc->GetParentType() == CT_FUNC_PROTO)
                     || (  options::indent_func_class_param()
