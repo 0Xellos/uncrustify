@@ -737,7 +737,7 @@ Chunk *newline_add_between(Chunk *start, Chunk *end)
    log_func_stack_inline(LNEWLINE);
 
    // Back-up check for one-liners (should never be true!)
-   if (!one_liner_nl_ok(start))
+   if (!one_liner_nl_ok(start) && !one_liner_nl_ok(end))
    {
       return(Chunk::NullChunkPtr);
    }
@@ -3733,34 +3733,69 @@ void undo_one_liner(Chunk *pc)
       LOG_FMT(LNL1LINE, "%s(%d): scan backward\n", __func__, __LINE__);
       Chunk *tmp = pc;
 
+	  int depth = 0;
+	  if (depth >= 0)
+	  {
+		 if (tmp->GetType() == CT_BRACE_CLOSE) depth++;
+		 if (tmp->GetType() == CT_BRACE_OPEN) depth--;
+	  }
+
       while ((tmp = tmp->GetPrev())->IsNotNullChunk())
       {
+		 if (depth >= 0)
+		 {
+			if (tmp->GetType() == CT_BRACE_CLOSE) depth++;
+		 }
          if (!tmp->TestFlags(PCF_ONE_LINER))
          {
             LOG_FMT(LNL1LINE, "%s(%d): tmp->Text() '%s', orig line is %zu, orig col is %zu, --> break\n",
                     __func__, __LINE__, tmp->Text(), tmp->GetOrigLine(), tmp->GetOrigCol());
             break;
          }
-         LOG_FMT(LNL1LINE, "%s(%d): clear for tmp->Text() '%s', orig line is %zu, orig col is %zu",
-                 __func__, __LINE__, tmp->Text(), tmp->GetOrigLine(), tmp->GetOrigCol());
-         tmp->ResetFlagBits(PCF_ONE_LINER);
+         if (depth <= 0)
+		 {
+			LOG_FMT(LNL1LINE, "%s(%d): clear for tmp->Text() '%s', orig line is %zu, orig col is %zu",
+					__func__, __LINE__, tmp->Text(), tmp->GetOrigLine(), tmp->GetOrigCol());
+			tmp->ResetFlagBits(PCF_ONE_LINER);
+		 }
+		 if (depth >= 0)
+		 {
+		    if (tmp->GetType() == CT_BRACE_OPEN) depth--;
+		 }
       }
       // scan forward
       LOG_FMT(LNL1LINE, "%s(%d): scan forward\n", __func__, __LINE__);
       tmp = pc;
       LOG_FMT(LNL1LINE, "%s(%d): - \n", __func__, __LINE__);
 
+	  depth = 0;
+	  if (depth >= 0)
+	  {
+	     if (tmp->GetType() == CT_BRACE_OPEN) depth++;
+		 if (tmp->GetType() == CT_BRACE_CLOSE) depth--;
+	  }
       while ((tmp = tmp->GetNext())->IsNotNullChunk())
       {
+		 if (depth >= 0)
+		 {
+		    if (tmp->GetType() == CT_BRACE_OPEN) depth++;
+		 }
          if (!tmp->TestFlags(PCF_ONE_LINER))
          {
             LOG_FMT(LNL1LINE, "%s(%d): tmp->Text() '%s', orig line is %zu, orig col is %zu, --> break\n",
                     __func__, __LINE__, tmp->Text(), tmp->GetOrigLine(), tmp->GetOrigCol());
             break;
          }
-         LOG_FMT(LNL1LINE, "%s(%d): clear for tmp->Text() '%s', orig line is %zu, orig col is %zu",
-                 __func__, __LINE__, tmp->Text(), tmp->GetOrigLine(), tmp->GetOrigCol());
-         tmp->ResetFlagBits(PCF_ONE_LINER);
+		 if (depth <= 0)
+		 {
+			LOG_FMT(LNL1LINE, "%s(%d): clear for tmp->Text() '%s', orig line is %zu, orig col is %zu",
+					__func__, __LINE__, tmp->Text(), tmp->GetOrigLine(), tmp->GetOrigCol());
+            tmp->ResetFlagBits(PCF_ONE_LINER);
+		 }
+		 if (depth >= 0)
+		 {
+		    if (tmp->GetType() == CT_BRACE_CLOSE) depth--;
+		 }
       }
       LOG_FMT(LNL1LINE, "\n");
    }
