@@ -4429,10 +4429,10 @@ debug_use_the_exit_function_pop; // = true
 extern Option<bool>
 set_numbering_for_html_output;
 
-// assume that (WORD) expressions in preprocessor statements
+// assume that (word) expressions in preprocessor statements
 // are not casts - parentheses are needed for correct expansion in macros
 extern Option<bool>
-pp_no_uppercase_cast;
+pp_no_cast;
 
 //END
 

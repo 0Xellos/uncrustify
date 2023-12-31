@@ -1577,7 +1577,11 @@ void do_symbol_check(Chunk *prev, Chunk *pc, Chunk *next)
                  && prev->IsNot(CT_WORD)          // Issue #2205
                  && pc->Is(CT_AMP)
                  && next->Is(CT_WORD)
-                 && !pc->TestFlags(PCF_IN_SPAREN))
+                 && !pc->TestFlags(PCF_IN_SPAREN)
+				 && (
+                    !options::pp_no_cast()
+					|| prev->IsNot(CT_PAREN_CLOSE))
+                 )
          {
             pc->SetType(CT_ADDR);
          }

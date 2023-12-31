@@ -148,7 +148,7 @@ void fix_casts(Chunk *start)
       {
          detail = " -- '_t'";
       }
-      else if (is_ucase_str(last->Text(), last->Len()) && !options::pp_no_uppercase_cast())
+      else if (is_ucase_str(last->Text(), last->Len()) && !options::pp_no_cast())
       {
          detail = " -- upper case";
       }
