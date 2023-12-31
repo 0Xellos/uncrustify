@@ -1244,6 +1244,11 @@ sp_extern_paren;
 extern Option<iarf_e>
 sp_cmt_cpp_start;
 
+// Add or remove space after the opening of a trailing C++ comment.
+// Overrides sp_cmt_cpp_start.
+extern Option<iarf_e>
+sp_cmt_cpp_tr;
+
 // remove space after the '//' and the pvs command '-V1234',
 // only works with sp_cmt_cpp_start set to add or force.
 extern Option<bool>

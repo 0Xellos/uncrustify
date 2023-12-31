@@ -2004,6 +2004,12 @@ static Chunk *output_comment_cpp(Chunk *first)
       // i.e. '// A' vs. '//A'.
       auto *sp_cmt = &options::sp_cmt_cpp_start;
 
+      // Special treatment for editing non-trailing comment text
+      if (first->GetParentType() != CT_COMMENT_WHOLE)
+      {
+         sp_cmt = &options::sp_cmt_cpp_tr;
+      }
+
       cmt.cont_text = leadin;
 
       // Get start of comment text
