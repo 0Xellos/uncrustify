@@ -248,7 +248,7 @@ bool Chunk::IsBefore(const Chunk *end) const
 	{
 		return (true);
 	}
-	if (GetOrigCol() < end->GetOrigCol())
+	if (GetOrigLine() == end->GetOrigLine() && GetOrigCol() < end->GetOrigCol())
 	{
 		return (true);
 	}
