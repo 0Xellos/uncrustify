@@ -381,8 +381,19 @@ void check_template(Chunk *start, bool in_type_cast)
    {
       pc = end->GetNextNcNnl(E_Scope::PREPROC);
 
-      if (  pc->IsNullChunk()
-         || pc->IsNot(CT_NUMBER))
+	  bool contains_operator = false;
+	   for (Chunk *op = start; op->IsNot(CT_ANGLE_CLOSE); op = op->GetNext())
+	   {
+	      if (op->Is(CT_BOOL) || op->Is(CT_SBOOL) || op->Is(CT_ARITH) || op->Is(CT_SARITH))
+		  {
+			  contains_operator = true;
+			  break;
+		  }
+	   }
+
+      if (  (pc->IsNullChunk() || pc->IsNot(CT_NUMBER))
+		 && !(pc->Is(CT_WORD) && contains_operator)
+	  	)
       {
          LOG_FMT(LTEMPL, "%s(%d): Template detected\n", __func__, __LINE__);
          LOG_FMT(LTEMPL, "%s(%d):     from orig line %zu, orig col %zu\n",
