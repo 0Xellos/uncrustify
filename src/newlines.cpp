@@ -935,6 +935,18 @@ void newlines_sparens()
             newline_iarf_pair(sparen_content_end, sparen_close, options::nl_before_if_closing_paren());
          }
       }
+
+	   // Add a newline after ';' if an if/for/while/switch condition spans multiple lines.
+	   // Overrides nl_after_semicolon if both are specified.
+	   for (Chunk *semicolon = sparen_open->GetNextType(CT_SEMICOLON, ANY_LEVEL);
+			semicolon->IsBefore(sparen_content_end);
+			semicolon = semicolon->GetNextType(CT_SEMICOLON, ANY_LEVEL)) {
+		   if (is_multiline
+			   && options::nl_multi_line_sparen_semicolon() != IARF_IGNORE) {
+			   log_rule_B("nl_multi_line_sparen_semicolon");
+			   newline_iarf(semicolon, options::nl_multi_line_sparen_semicolon());
+		   }
+	   }
    }
 } // newlines_sparens
 

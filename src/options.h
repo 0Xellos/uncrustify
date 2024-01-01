@@ -2258,6 +2258,12 @@ nl_multi_line_sparen_open;
 extern Option<iarf_e>
 nl_multi_line_sparen_close;
 
+// Add a newline after ';' if an if/for/while/switch condition
+// (before C++17, only for condition) spans multiple lines.
+// Overrides nl_after_semicolon.
+extern Option<iarf_e>
+nl_multi_line_sparen_semicolon;
+
 // Force a newline in a define after the macro name for multi-line defines.
 extern Option<bool>
 nl_multi_line_define;

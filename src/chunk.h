@@ -878,6 +878,13 @@ public:
    bool IsOnSameLine(const Chunk *end) const;
 
    /**
+    * @brief checks whether the current chunk is strictly before the given 'end' chunk.
+    * @param end the end chunk
+    * @return true if the current chunk is before end chunk
+   */
+   bool IsBefore(const Chunk *end) const;
+
+	/**
     * @brief checks whether the chunk is an opening brace
     * @return true if the chunk is an opening brace
     */

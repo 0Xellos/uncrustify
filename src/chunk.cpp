@@ -238,6 +238,24 @@ bool Chunk::IsOnSameLine(const Chunk *end) const
 }
 
 
+bool Chunk::IsBefore(const Chunk *end) const
+{
+	if (IsNullChunk())
+	{
+		return(false);
+	}
+	if (GetOrigLine() < end->GetOrigLine())
+	{
+		return (true);
+	}
+	if (GetOrigCol() < end->GetOrigCol())
+	{
+		return (true);
+	}
+	return (false);
+}
+
+
 Chunk *Chunk::SearchTypeLevel(const E_Token type, const E_Scope scope,
                               const E_Direction dir, const int level) const
 {
