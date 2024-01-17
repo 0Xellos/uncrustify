@@ -403,6 +403,13 @@ public:
    Chunk *GetPrevNc(const E_Scope scope = E_Scope::ALL) const;
 
    /**
+    * @brief returns the prev non-preprocessor chunk
+    * @param scope code region to search in
+    * @return pointer to prev non-preprocessor chunk or Chunk::NullChunkPtr if no chunk was found
+    */
+    Chunk *GetPrevNpp(const E_Scope scope = E_Scope::ALL) const;
+
+    /**
     * @brief returns the next non-comment and non-newline chunk
     * @param scope code region to search in
     * @return pointer to next non-comment and non-newline chunk or Chunk::NullChunkPtr if no chunk was found
@@ -1423,6 +1430,12 @@ inline Chunk *Chunk::GetNextNc(const E_Scope scope) const
 inline Chunk *Chunk::GetPrevNc(const E_Scope scope) const
 {
    return(Search(&Chunk::IsComment, scope, E_Direction::BACKWARD, false));
+}
+
+
+inline Chunk *Chunk::GetPrevNpp(const E_Scope scope) const
+{
+    return(Search(&Chunk::IsPreproc, scope, E_Direction::BACKWARD, false));
 }
 
 

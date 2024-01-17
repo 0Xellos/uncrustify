@@ -2859,19 +2859,25 @@ nl_before_func_class_proto;
 extern BoundedOption<unsigned, 0, 16>
 nl_before_func_class_def;
 
-// Allow any number of newlines between function prototypes.
+// If a multi-line function body is followed by one or more #endif
+// and the number of newlines after the function body is set,
+// remove newlines before the final #endif and add them after.
+// Same for #if directives (incl. #else) before a multi-line function body.
 extern Option<bool>
-ignore_nl_between_func_proto;
+group_func_body_if_pp;
 
-// If a multi-line function body is followed by a preprocessor directive,
-// ignore options nl_after_func_body and nl_after_func_body_class.
+// Same as group_func_body_if_pp but for a class declaration.
 extern Option<bool>
-group_func_body_pp;
+group_class_if_pp;
 
-// If a class definition is followed by a preprocessor directive,
-// ignore options nl_after_class and nl_after_struct.
+// Same as group_func_body_if_pp but for a function prototype or group.
 extern Option<bool>
-group_class_pp;
+group_func_proto_if_pp;
+
+// Same as group_func_body_if_pp but for a class constructor/destructor
+// prototype or group.
+extern Option<bool>
+group_func_class_proto_if_pp;
 
 // The number of newlines after a function prototype.
 extern BoundedOption<unsigned, 0, 16>
@@ -2898,6 +2904,11 @@ nl_after_func_class_proto_group;
 // and nl_before_func_class_def for one-liners.
 extern Option<bool>
 nl_class_leave_one_liner_groups;
+
+// Treat comments and preprocessor directives as not breaking groups.
+// TODO select nothing or newline
+extern Option<bool>
+ignore_cmt_pp_in_groups;
 
 // The number of newlines after '}' of a multi-line function body.
 //
@@ -3020,6 +3031,11 @@ nl_after_struct;
 // The number of newlines before a class definition.
 extern BoundedOption<unsigned, 0, 16>
 nl_before_class;
+
+// The number of newlines after '{' of a class definition.
+// This also adds newlines before the matching '}'.
+extern BoundedOption<unsigned, 0, 16>
+nl_inside_class;
 
 // The number of newlines after '}' or ';' of a class definition.
 extern BoundedOption<unsigned, 0, 16>

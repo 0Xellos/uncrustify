@@ -43,6 +43,55 @@ static void mark_change(const char *func, size_t line);
 
 
 /**
+ * pc is newline
+ */
+static Chunk *search_nl_after_endif_group(Chunk *pc)
+{
+   Chunk *tmp = pc;
+
+   Chunk *next = tmp->GetNextNnl();
+
+   while (next->IsNotNullChunk()
+      && next->GetType() == CT_PREPROC
+      && next->GetNext()->GetType() == CT_PP_ENDIF)
+   {
+      tmp = next->GetNextNl();
+      if (next->GetNextNl()->IsNullChunk()) break;
+
+      next = tmp->GetNextNnl();
+   }
+
+   return tmp;
+}
+
+
+/**
+ * pc is newline
+ */
+static Chunk *search_nl_before_if_pp_group(Chunk *pc)
+{
+   Chunk *tmp = pc;
+
+   while (tmp->GetPrevNnl()->TestFlags(PCF_IN_PREPROC))
+   {
+      // handle multiline #if
+      Chunk *pp_start = tmp->GetPrevNnl()->GetPrevType(CT_PREPROC);
+
+      if (  pp_start->IsNullChunk()
+         || (  pp_start->GetNext()->GetType() != CT_PP_IF
+            && pp_start->GetNext()->GetType() != CT_PP_ELSE))
+      {
+         break;
+      }
+
+      tmp = pp_start->GetPrevNl();
+   }
+
+   return tmp;
+}
+
+
+/**
  * Check to see if we are allowed to increase the newline count.
  * We can't increase the newline count:
  *  - if nl_squeeze_ifdef and a preproc is after the newline.
@@ -52,6 +101,8 @@ static void mark_change(const char *func, size_t line);
  *  - if eat_blanks_after_open_brace and the prev is '{'
  *    - unless the brace belongs to a namespace
  *      and nl_inside_namespace is non-zero
+ *    - unless the brace belongs to a class definition
+ *      and nl_inside_class is non-zero
  */
 static bool can_increase_nl(Chunk *nl);
 
@@ -377,7 +428,16 @@ static bool can_increase_nl(Chunk *nl)
          return(true);
       }
 
-      if (  options::nl_inside_empty_func() > 0
+       if (  options::nl_inside_class() > 0
+             && next->GetParentType() == CT_CLASS)
+       {
+           log_rule_B("nl_inside_class");
+           LOG_FMT(LBLANKD, "%s(%d): nl_inside_class %zu\n",
+                   __func__, __LINE__, nl->GetOrigLine());
+           return(true);
+       }
+
+       if (  options::nl_inside_empty_func() > 0
          && prev->Is(CT_BRACE_OPEN)
          && (  next->GetParentType() == CT_FUNC_DEF
             || next->GetParentType() == CT_FUNC_CLASS_DEF))
@@ -420,7 +480,16 @@ static bool can_increase_nl(Chunk *nl)
          return(true);
       }
 
-      if (  options::nl_inside_empty_func() > 0
+       if (  options::nl_inside_class() > 0
+             && prev->GetParentType() == CT_CLASS)
+       {
+           log_rule_B("nl_inside_class");
+           LOG_FMT(LBLANKD, "%s(%d): nl_inside_class %zu\n",
+                   __func__, __LINE__, nl->GetOrigLine());
+           return(true);
+       }
+
+       if (  options::nl_inside_empty_func() > 0
          && next->Is(CT_BRACE_CLOSE)
          && (  prev->GetParentType() == CT_FUNC_DEF
             || prev->GetParentType() == CT_FUNC_CLASS_DEF))
@@ -1146,7 +1215,7 @@ static void blank_line_set(Chunk *pc, Option<unsigned> &opt)
 {
    LOG_FUNC_ENTRY();
 
-   if (pc->IsNullChunk())
+   if (pc->IsNullChunk() || pc->GetNextNnl()->IsNullChunk())
    {
       return;
    }
@@ -1215,43 +1284,58 @@ bool do_it_newlines_func_pre_blank_lines(Chunk *last_nl, E_Token start_type)
 
    case CT_FUNC_DEF:
    {
+      Chunk *last_nl_tmp = last_nl;
+
+      if (options::group_func_body_if_pp())
+      {
+         log_rule_B("group_func_body_if_pp");
+         last_nl_tmp = search_nl_before_if_pp_group(last_nl);
+      }
+
       LOG_FMT(LNLFUNCT, "%s(%d): nl_before_func_body_def() is %u, last_nl new line count is %zu\n",
-              __func__, __LINE__, options::nl_before_func_body_def(), last_nl->GetNlCount());
+              __func__, __LINE__, options::nl_before_func_body_def(), last_nl_tmp->GetNlCount());
       log_rule_B("nl_before_func_body_def");
-      bool diff = options::nl_before_func_body_def() <= last_nl->GetNlCount();
+      bool diff = options::nl_before_func_body_def() <= last_nl_tmp->GetNlCount();
       LOG_FMT(LNLFUNCT, "%s(%d): is %s\n",
               __func__, __LINE__, diff ? "TRUE" : "FALSE");
 
       log_rule_B("nl_before_func_body_def");
 
-      if (options::nl_before_func_body_def() != last_nl->GetNlCount())
+      if (options::nl_before_func_body_def() != last_nl_tmp->GetNlCount())
       {
          LOG_FMT(LNLFUNCT, "%s(%d):    set blank line(s) to %u\n",
                  __func__, __LINE__, options::nl_before_func_body_def());
          log_rule_B("nl_before_func_body_def");
-         blank_line_set(last_nl, options::nl_before_func_body_def);
+         blank_line_set(last_nl_tmp, options::nl_before_func_body_def);
       }
       LOG_FMT(LNLFUNCT, "%s(%d): nl_before_func_body_def() is %u, last_nl new line count is %zu\n",
-              __func__, __LINE__, options::nl_before_func_body_def(), last_nl->GetNlCount());
+              __func__, __LINE__, options::nl_before_func_body_def(), last_nl_tmp->GetNlCount());
       return(diff);
    }
 
    case CT_FUNC_PROTO:
    {
+      Chunk *last_nl_tmp = last_nl;
+
+      if (options::group_func_proto_if_pp())
+      {
+         log_rule_B("group_func_proto_if_pp");
+         last_nl_tmp = search_nl_before_if_pp_group(last_nl);
+      }
+
       log_rule_B("nl_before_func_body_proto");
-      bool diff = options::nl_before_func_body_proto() <= last_nl->GetNlCount();
+      bool diff = options::nl_before_func_body_proto() <= last_nl_tmp->GetNlCount();
       LOG_FMT(LNLFUNCT, "%s(%d): is %s\n",
               __func__, __LINE__, diff ? "TRUE" : "FALSE");
 
       log_rule_B("nl_before_func_body_proto");
 
-      if (options::nl_before_func_body_proto() != last_nl->GetNlCount()
-         && !options::ignore_nl_between_func_proto())
+      if (options::nl_before_func_body_proto() != last_nl_tmp->GetNlCount())
       {
          LOG_FMT(LNLFUNCT, "%s(%d):   set blank line(s) to %u\n",
                  __func__, __LINE__, options::nl_before_func_body_proto());
          log_rule_B("nl_before_func_body_proto");
-         blank_line_set(last_nl, options::nl_before_func_body_proto);
+         blank_line_set(last_nl_tmp, options::nl_before_func_body_proto);
       }
       return(diff);
    }
@@ -2621,6 +2705,7 @@ static void newlines_brace_pair(Chunk *br_open)
       {
          log_rule_B("nl_inside_empty_func");
          log_rule_B("nl_inside_namespace");
+          log_rule_B("nl_inside_class");
 
          if (  options::nl_inside_empty_func() > 0
             && br_open->GetNextNnl()->Is(CT_BRACE_CLOSE)
@@ -2633,6 +2718,11 @@ static void newlines_brace_pair(Chunk *br_open)
                  && br_open->GetParentType() == CT_NAMESPACE)
          {
             blank_line_set(next, options::nl_inside_namespace);
+         }
+         else if (  options::nl_inside_class() > 0
+                    && br_open->GetParentType() == CT_CLASS)
+         {
+             blank_line_set(next, options::nl_inside_class);
          }
          else if (next->GetNlCount() > 1)
          {
@@ -4474,6 +4564,7 @@ void newlines_cleanup_braces(bool first)
             {
                log_rule_B("nl_inside_namespace");
                log_rule_B("nl_inside_empty_func");
+                log_rule_B("nl_inside_class");
 
                if (  options::nl_inside_empty_func() > 0
                   && pc->GetPrevNnl()->Is(CT_BRACE_OPEN)
@@ -4486,6 +4577,11 @@ void newlines_cleanup_braces(bool first)
                        && pc->GetParentType() == CT_NAMESPACE)
                {
                   blank_line_set(prev, options::nl_inside_namespace);
+               }
+               else if (  options::nl_inside_class() > 0
+                          && pc->GetParentType() == CT_CLASS)
+               {
+                   blank_line_set(prev, options::nl_inside_class);
                }
                else if (prev->GetNlCount() != 1)
                {
@@ -4809,10 +4905,7 @@ void newlines_cleanup_braces(bool first)
          {
             log_rule_B("nl_after_class");
 
-            if (options::nl_after_class() > 0
-               && !(options::group_class_pp()
-                  && pc->IsNewline()
-                  && pc->GetNext()->IsPreproc()))
+            if (options::nl_after_class() > 0)
             {
                /*
                 * If there is already a "class" comment, then don't add a newline if
@@ -4832,7 +4925,16 @@ void newlines_cleanup_braces(bool first)
                      mode = IARF_IGNORE;
                   }
                }
-               newline_iarf(pc, mode);
+
+               Chunk *next_tmp = next;
+
+               if (options::group_class_if_pp())
+               {
+                   log_rule_B("group_class_if_pp");
+                   next_tmp = search_nl_after_endif_group(next);
+               }
+
+               newline_iarf(next_tmp->GetPrev(), mode);
             }
          }
       }
@@ -6321,6 +6423,12 @@ void do_blank_lines()
             tmp = tmp->GetPrev()->GetPrevNc();
          }
 
+         if (options::group_class_if_pp())
+         {
+            log_rule_B("group_class_if_pp");
+            tmp = search_nl_before_if_pp_group(tmp);
+         }
+
          if (  tmp->IsNotNullChunk()
             && !start->TestFlags(PCF_INCOMPLETE))
          {
@@ -6411,63 +6519,68 @@ void do_blank_lines()
          else
          {
             if (  prev->TestFlags(PCF_IN_CLASS)
-               && (options::nl_after_func_body_class() > 0)
-               && !(options::group_func_body_pp()
-                  && pc->IsNewline()
-                  && pc->GetNext()->IsPreproc()))
+               && (options::nl_after_func_body_class() > 0))
             {
                log_rule_B("nl_after_func_body_class");
 
-               if (options::nl_after_func_body_class() != pc->GetNlCount())
+               Chunk *pc_tmp = pc;
+
+               if (options::group_func_body_if_pp())
+               {
+                  log_rule_B("group_func_body_if_pp");
+                  pc_tmp = search_nl_after_endif_group(pc);
+               }
+
+               if (  pc_tmp->IsNotNullChunk()
+                  && options::nl_after_func_body_class() != pc_tmp->GetNlCount())
                {
                   log_rule_B("nl_after_func_body_class");
-                  blank_line_set(pc, options::nl_after_func_body_class);
+                  blank_line_set(pc_tmp, options::nl_after_func_body_class);
                }
             }
             else
             {
                if (!(pc->GetPrev()->TestFlags(PCF_IN_TRY_BLOCK))) // Issue #1734
                {
-                  if (options::nl_after_func_body() > 0
-                     && !(options::group_func_body_pp()
-                        && pc->IsNewline()
-                        && pc->GetNext()->IsPreproc()))
+                  Chunk *pc_tmp = pc;
+
+                  if (options::group_func_body_if_pp())
+                  {
+                     log_rule_B("group_func_body_if_pp");
+                     pc_tmp = search_nl_after_endif_group(pc);
+                  }
+
+                  if (options::nl_after_func_body() > 0)
                   {
                      log_rule_B("nl_after_func_body");
 
-                     if (options::nl_after_func_body() != pc->GetNlCount())
+                     if (options::nl_after_func_body() != pc_tmp->GetNlCount())
                      {
                         log_rule_B("nl_after_func_body");
-                        blank_line_set(pc, options::nl_after_func_body);
+                        blank_line_set(pc_tmp, options::nl_after_func_body);
                      }
                   }
                   else
                   {
-                     if (options::nl_min_after_func_body() > 0
-                        && !(options::group_func_body_pp()
-                           && pc->IsNewline()
-                           && pc->GetNext()->IsPreproc())) // Issue #2787
+                     if (options::nl_min_after_func_body() > 0) // Issue #2787
                      {
                         log_rule_B("nl_min_after_func_body");
 
-                        if (options::nl_min_after_func_body() > pc->GetNlCount())
+                        if (options::nl_min_after_func_body() > pc_tmp->GetNlCount())
                         {
                            log_rule_B("nl_min_after_func_body");
-                           blank_line_set(pc, options::nl_min_after_func_body);
+                           blank_line_set(pc_tmp, options::nl_min_after_func_body);
                         }
                      }
 
-                     if (options::nl_max_after_func_body() > 0
-                        && !(options::group_func_body_pp()
-                           && pc->IsNewline()
-                           && pc->GetNext()->IsPreproc()))
+                     if (options::nl_max_after_func_body() > 0)
                      {
                         log_rule_B("nl_max_after_func_body");
 
-                        if (options::nl_max_after_func_body() < pc->GetNlCount())
+                        if (options::nl_max_after_func_body() < pc_tmp->GetNlCount())
                         {
                            log_rule_B("nl_max_after_func_body");
-                           blank_line_set(pc, options::nl_max_after_func_body);
+                           blank_line_set(pc_tmp, options::nl_max_after_func_body);
                         }
                      }
                   }
@@ -6481,21 +6594,41 @@ void do_blank_lines()
             && prev->GetParentType() == CT_FUNC_PROTO)
          || is_func_proto_group(prev, CT_FUNC_DEF))
       {
-         if (options::nl_after_func_proto() > pc->GetNlCount()
-            && !options::ignore_nl_between_func_proto())
+         if (options::nl_after_func_proto() > pc->GetNlCount())
          {
             log_rule_B("nl_after_func_proto");
-            pc->SetNlCount(options::nl_after_func_proto());
+
+            Chunk *pc_tmp = pc;
+
+            if (options::group_func_proto_if_pp())
+            {
+               log_rule_B("group_func_proto_if_pp");
+               pc_tmp = search_nl_after_endif_group(pc);
+            }
+
+            pc_tmp->SetNlCount(options::nl_after_func_proto());
             MARK_CHANGE();
          }
 
-         if (  (options::nl_after_func_proto_group() > pc->GetNlCount())
-            && next->IsNotNullChunk()
-            && next->GetParentType() != CT_FUNC_PROTO
-            && !is_func_proto_group(next, CT_FUNC_DEF))
+         Chunk *next_not_cmt_pp = pc->GetNextNcNnlNpp();
+
+         if (  options::nl_after_func_proto_group() != 0
+            && next_not_cmt_pp->IsNotNullChunk()
+            && next_not_cmt_pp->GetParentType() != CT_FUNC_PROTO
+            && next_not_cmt_pp->GetParentType() != CT_CLASS // nl_inside_class
+            && !is_func_proto_group(next_not_cmt_pp, CT_FUNC_DEF))
          {
             log_rule_B("nl_after_func_proto_group");
-            blank_line_set(pc, options::nl_after_func_proto_group);
+
+            Chunk *pc_tmp = pc;
+
+            if (options::group_func_proto_if_pp())
+            {
+               log_rule_B("group_func_proto_if_pp");
+               pc_tmp = search_nl_after_endif_group(pc);
+            }
+
+            blank_line_set(pc_tmp, options::nl_after_func_proto_group);
          }
       }
 
@@ -6507,17 +6640,38 @@ void do_blank_lines()
          if (options::nl_after_func_class_proto() > pc->GetNlCount())
          {
             log_rule_B("nl_after_func_class_proto");
-            pc->SetNlCount(options::nl_after_func_class_proto());
+
+            Chunk *pc_tmp = pc;
+
+            if (options::group_func_class_proto_if_pp())
+            {
+               log_rule_B("group_func_class_proto_if_pp");
+               pc_tmp = search_nl_after_endif_group(pc);
+            }
+
+            pc_tmp->SetNlCount(options::nl_after_func_class_proto());
             MARK_CHANGE();
          }
 
-         if (  (options::nl_after_func_class_proto_group() > pc->GetNlCount())
-            && next->IsNot(CT_FUNC_CLASS_PROTO)
-            && next->GetParentType() != CT_FUNC_CLASS_PROTO
-            && !is_func_proto_group(next, CT_FUNC_CLASS_DEF))
+          Chunk *next_not_cmt_pp = pc->GetNextNcNnlNpp();
+
+          if (  options::nl_after_func_class_proto_group() != 0
+            && next_not_cmt_pp->IsNot(CT_FUNC_CLASS_PROTO)
+            && next_not_cmt_pp->GetParentType() != CT_FUNC_CLASS_PROTO
+            && next_not_cmt_pp->GetParentType() != CT_CLASS // nl_inside_class
+            && !is_func_proto_group(next_not_cmt_pp, CT_FUNC_CLASS_DEF))
          {
             log_rule_B("nl_after_func_class_proto_group");
-            blank_line_set(pc, options::nl_after_func_class_proto_group);
+
+            Chunk *pc_tmp = pc;
+
+            if (options::group_func_class_proto_if_pp())
+            {
+               log_rule_B("group_func_class_proto_if_pp");
+               pc_tmp = search_nl_after_endif_group(pc);
+            }
+
+            blank_line_set(pc_tmp, options::nl_after_func_class_proto_group);
          }
       }
 
@@ -6535,10 +6689,15 @@ void do_blank_lines()
          log_rule_B("nl_after_class");
          log_rule_B("nl_after_struct");
 
-         if (opt() > pc->GetNlCount()
-            && !(options::group_class_pp()
-               && pc->IsNewline()
-               && pc->GetNext()->IsPreproc()))
+         Chunk *pc_tmp = pc;
+
+         if (options::group_class_if_pp())
+         {
+            log_rule_B("group_class_if_pp");
+            pc_tmp = search_nl_after_endif_group(pc);
+         }
+
+         if (opt() > pc_tmp->GetNlCount())
          {
             // Issue #1702
             // look back if we have a variable
@@ -6575,7 +6734,7 @@ void do_blank_lines()
             if (  !is_var_def
                && !is_fwd_decl)
             {
-               blank_line_set(pc, opt);
+               blank_line_set(pc_tmp, opt);
             }
          }
       }
@@ -6689,7 +6848,19 @@ void do_blank_lines()
          blank_line_set(pc, options::nl_inside_namespace);
       }
 
-      // Control blanks before a whole-file #ifdef
+       // Change blanks inside class def braces
+       if (  (options::nl_inside_class() != 0)
+             && (options::nl_inside_class() != pc->GetNlCount())
+             && (  (  prev->Is(CT_BRACE_OPEN)
+                      && prev->GetParentType() == CT_CLASS)
+                   || (  next->Is(CT_BRACE_CLOSE)
+                         && next->GetParentType() == CT_CLASS)))
+       {
+           log_rule_B("nl_inside_class");
+           blank_line_set(pc, options::nl_inside_class);
+       }
+
+       // Control blanks before a whole-file #ifdef
       if (  options::nl_before_whole_file_ifdef() != 0
          && options::nl_before_whole_file_ifdef() != pc->GetNlCount()
          && next->Is(CT_PREPROC)
